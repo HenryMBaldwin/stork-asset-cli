@@ -67,22 +67,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "asset_conf_cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "dirs",
- "hex",
- "rand",
- "reqwest",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_yaml",
- "tiny-keccak",
-]
-
-[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1056,6 +1040,22 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+
+[[package]]
+name = "stork_asset_cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "dirs",
+ "hex",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_yaml",
+ "tiny-keccak",
+]
 
 [[package]]
 name = "strsim"

@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use tiny_keccak::{Hasher, Keccak};
 
 #[derive(Parser)]
-#[command(name = "asset-conf")]
-#[command(about = "A CLI tool for asset configuration")]
+#[command(name = "stork-asset")]
+#[command(about = "A small CLI tool for generating Stork asset configurations")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -35,11 +35,11 @@ enum Commands {
         output: String,
         
         /// Number of random assets to include
-        #[arg(short = 'r', long = "random", conflicts_with = "assets")]
+        #[arg(short = 'r', long = "random")]
         random: Option<usize>,
         
         /// Comma-separated list of assets to include
-        #[arg(short = 'a', long = "assets", conflicts_with = "random")]
+        #[arg(short = 'a', long = "assets")]
         assets: Option<String>,
 
         /// Fallback period in seconds
@@ -142,7 +142,7 @@ fn get_available_assets(token: &str) -> Result<Vec<String>, String> {
                     Err("Invalid response format from server".to_string())
                 }
             } else {
-                Err(format!("Server returned status {}", response.status()))
+                Err(format!("Server returned status {} - check your token with get-token and set-token", response.status()))
             }
         }
         Err(e) => Err(format!("Error making request: {}", e)),
@@ -200,6 +200,9 @@ fn main() {
                                         }
                                     } else {
                                         println!("Error: Server returned status {}", response.status());
+                                        if response.status() == 401 {
+                                            println!("Check your token with: \n\n   stork-asset get-token \n\nChange your token with: \n\n   stork-asset set-token <token>");
+                                        }
                                     }
                                 }
                                 Err(e) => println!("Error making request: {}", e),
@@ -224,24 +227,11 @@ fn main() {
                     match config.auth_token {
                         Some(token) => {
                             match get_available_assets(&token) {
-                                Ok(available_assets) => {
-                                    let selected_assets = if let Some(n) = random {
-                                        if n == 0 {
-                                            println!("Error: Number of random assets must be greater than 0");
-                                            return;
-                                        }
-                                        if n > available_assets.len() {
-                                            println!("Error: Requested {} assets but only {} are available", 
-                                                n, available_assets.len());
-                                            return;
-                                        }
-                                        
-                                        let mut rng = rand::thread_rng();
-                                        available_assets
-                                            .choose_multiple(&mut rng, n)
-                                            .cloned()
-                                            .collect::<Vec<_>>()
-                                    } else if let Some(asset_list) = assets {
+                                Ok(mut available_assets) => {
+                                    let mut selected_assets = Vec::new();
+
+                                    // First, add specifically requested assets
+                                    if let Some(asset_list) = assets {
                                         let requested_assets: Vec<_> = asset_list.split(',')
                                             .map(|s| s.trim().to_string())
                                             .collect();
@@ -252,13 +242,34 @@ fn main() {
                                                 println!("Error: Asset '{}' not found in available assets", asset);
                                                 return;
                                             }
+                                            selected_assets.push(asset.clone());
+                                            // Remove from available_assets to prevent duplicates in random selection
+                                            if let Some(pos) = available_assets.iter().position(|x| x == asset) {
+                                                available_assets.swap_remove(pos);
+                                            }
                                         }
-                                        
-                                        requested_assets
-                                    } else {
-                                        println!("Error: Either -r or -a must be provided");
+                                    }
+
+                                    // Then add random assets if requested
+                                    if let Some(n) = random {
+                                        if n > 0 {
+                                            if n > available_assets.len() {
+                                                println!("Warning: Requested {} additional random assets but only {} are available", 
+                                                    n, available_assets.len());
+                                            }
+                                            let mut rng = rand::thread_rng();
+                                            selected_assets.extend(
+                                                available_assets
+                                                    .choose_multiple(&mut rng, n.min(available_assets.len()))
+                                                    .cloned()
+                                            );
+                                        }
+                                    }
+
+                                    if selected_assets.is_empty() {
+                                        println!("Error: No assets selected. Use -a and/or -r to specify assets");
                                         return;
-                                    };
+                                    }
 
                                     let mut config_map = BTreeMap::new();
                                     for asset_id in selected_assets {
@@ -283,7 +294,7 @@ fn main() {
                                         .map_err(|e| println!("Error writing file: {}", e))
                                         .ok();
                                     
-                                    println!("Successfully generated config with {} assets", config.assets.len());
+                                    println!("Successfully generated config with {} assets at {}", config.assets.len(), output);
                                 }
                                 Err(e) => println!("Error: {}", e),
                             }
