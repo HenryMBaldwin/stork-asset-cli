@@ -192,11 +192,11 @@ fn main() {
                                     if response.status().is_success() {
                                         let response: serde_json::Value = response.json().unwrap();
                                         if let Some(assets) = response["data"].as_array() {
-                                            println!("Total Assets: {}", assets.len());
                                             println!("Assets:");
                                             for asset in assets {
                                                 println!("  {}", asset.as_str().unwrap_or("Invalid asset name"));
                                             }
+                                            println!("Total Assets: {}", assets.len());
                                         }
                                     } else {
                                         println!("Error: Server returned status {}", response.status());
