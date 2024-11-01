@@ -26,7 +26,18 @@ enum Commands {
     /// Get the current authentication token
     GetToken,
     /// Get available assets
-    GetAssets,
+    GetAssets{
+        /// Show encoded asset IDs
+        #[arg(short = 'e', long = "encoded")]
+        show_encoded: bool,
+    },
+    /// Get encoded asset ID(s)
+    #[command(name = "get-encoded" )]
+    GetEncodedAssets{
+        /// Comma-separated list of asset IDs
+        #[arg(short = 'a', long = "assets")]
+        assets: String,
+    },
     /// Generate an asset configuration file
     #[command(aliases = ["gen", "generate", "gen-config", "gen-conf"])]
     GenerateConfig {
@@ -171,7 +182,7 @@ fn main() {
                         None => println!("No authentication token set"),
                     }
                 }
-                Commands::GetAssets => {
+                Commands::GetAssets { show_encoded } => {
                     let config = load_config();
                     match config.auth_token {
                         Some(token) => {
@@ -194,7 +205,11 @@ fn main() {
                                         if let Some(assets) = response["data"].as_array() {
                                             println!("Assets:\n");
                                             for asset in assets {
-                                                println!("{}", asset.as_str().unwrap_or("Invalid asset name"));
+                                                if show_encoded {
+                                                    println!("{}: {}", asset.as_str().unwrap_or("Invalid asset name"), calculate_encoded_asset_id(asset.as_str().unwrap_or("Invalid asset name")));
+                                                } else {
+                                                    println!("{}", asset.as_str().unwrap_or("Invalid asset name"));
+                                                }
                                             }
                                             println!("\nTotal Assets: {}", assets.len());
                                         }
@@ -209,6 +224,49 @@ fn main() {
                             }
                         }
                         None => println!("No authentication token set. Set token with: \n\n   asset-conf set-token <token>"),
+                    }
+                }
+                Commands::GetEncodedAssets { assets } => {
+                    let mut invalid_assets = Vec::new();
+                    let available_assets = match load_config().auth_token {
+                        Some(token) => match get_available_assets(&token) {
+                            Ok(assets) => Some(assets),
+                            Err(e) => {
+                                let err_msg = format!("Unable to validate asset IDs: {}", e);
+                                None
+                            }
+                        },
+                        None => {
+                            let err_msg = "Unable to validate asset IDs: No authentication token set".to_string();
+                            None
+                        }
+                    };
+
+                    // Print all asset IDs and their encodings first
+                    for asset_id in assets.split(',').map(|s| s.trim()) {
+                        let encoded = calculate_encoded_asset_id(asset_id);
+                        println!("{}: {}", asset_id, encoded);
+                        
+                        if let Some(ref available) = available_assets {
+                            if !available.contains(&asset_id.to_string()) {
+                                invalid_assets.push(asset_id);
+                            }
+                        }
+                    }
+
+                    // Print any warnings after all assets
+                    println!();
+                    if !invalid_assets.is_empty() {
+                        println!("Warning: The following asset IDs were invalid: {}", 
+                            invalid_assets.join(", "));
+                    }
+                    if available_assets.is_none() {
+                        println!("Warning: Unable to validate asset IDs: {}", 
+                            if load_config().auth_token.is_none() {
+                                "No authentication token set"
+                            } else {
+                                "Error fetching available assets"
+                            });
                     }
                 }
                 Commands::GenerateConfig { 

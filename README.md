@@ -43,6 +43,16 @@ You can get all available assets with:
 ```bash
 stork-asset get-assets
 ```
+and optionally add the `-e` flag to get the encoded asset IDs as well:
+
+```bash
+stork-asset get-assets -e
+```
+You can also get the encoded asset IDs for specific assets with:
+
+```bash
+stork-asset get-encoded -a <asset_id1>,<asset_id2>,...
+```
 
 ### Generating an Asset Configuration
 
