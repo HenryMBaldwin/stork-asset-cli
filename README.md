@@ -74,7 +74,7 @@ Optionally, you can provide:
 -p <Percentage Change Threshold>
 ```
 
-### Example
+## Example
 
 #### Generate config with 5 random assets
 ```bash
