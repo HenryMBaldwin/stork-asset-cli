@@ -10,7 +10,7 @@ ARCH=$(uname -m)
 case $ARCH in
     x86_64)
         ARCH="amd64"
-        ;
+        ;;
     aarch64|arm64)
         ARCH="arm64"
         ;;
@@ -43,7 +43,7 @@ sudo mkdir -p "$INSTALL_DIR"
 
 echo "Downloading stork-asset..."
 # Download the binary
-sudo curl -L "https://github.com/YOUR_USERNAME/stork-asset/releases/download/$LATEST_RELEASE/$BINARY_NAME" -o "$INSTALL_DIR/stork-asset"
+sudo curl -L "https://github.com/henrymbaldwin/stork-asset-cli/releases/download/$LATEST_RELEASE/$BINARY_NAME" -o "$INSTALL_DIR/stork-asset"
 
 # Make it executable
 sudo chmod +x "$INSTALL_DIR/stork-asset"
