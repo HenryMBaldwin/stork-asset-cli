@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Release - ${{ matrix.platform.release_for }}
+    strategy:
+      matrix:
+        platform:
+          - release_for: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: stork-asset
+            name: stork-asset-linux-amd64
+            
+          - release_for: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: stork-asset.exe
+            name: stork-asset-windows-amd64
+            
+          - release_for: macOS-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bin: stork-asset
+            name: stork-asset-macos-amd64
+            
+          - release_for: macOS-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bin: stork-asset
+            name: stork-asset-macos-arm64
+
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+          
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.platform.target }}
+        
+      - name: Prepare asset
+        shell: bash
+        run: |
+          mkdir -p release
+          if [ "${{ matrix.platform.os }}" = "windows-latest" ]; then
+            cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} release/
+          else
+            cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} release/
+          fi
+          
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release/${{ matrix.platform.bin }}
+          asset_name: ${{ matrix.platform.name }}
+          tag: ${{ github.ref }}
+          overwrite: true 
