@@ -35,18 +35,45 @@ case $OS in
 esac
 
 # Get latest release version from GitHub
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/henrymbaldwin/stork-asset-cli/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+LATEST_RELEASE=$(curl -s -H "User-Agent: stork-asset-install-script" https://api.github.com/repos/henrymbaldwin/stork-asset-cli/releases/latest | grep "tag_name" | cut -d '"' -f 4)
 
 # Create installation directory
-INSTALL_DIR="/usr/local/bin"
-sudo mkdir -p "$INSTALL_DIR"
+INSTALL_DIR="${HOME}/.local/bin"
+mkdir -p "$INSTALL_DIR"
+
+# Ensure ~/.local/bin is in PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo "Adding ~/.local/bin to PATH in your shell configuration..."
+    
+    # Detect shell and update rc file
+    SHELL_RC=""
+    if [[ $SHELL == *"zsh"* ]]; then
+        SHELL_RC="$HOME/.zshrc"
+    elif [[ $SHELL == *"bash"* ]]; then
+        SHELL_RC="$HOME/.bashrc"
+    fi
+    
+    if [ -n "$SHELL_RC" ]; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+        echo "Please restart your terminal or run: source $SHELL_RC"
+    else
+        echo "Warning: Could not detect shell configuration file."
+        echo "Please add ~/.local/bin to your PATH manually."
+    fi
+fi
 
 echo "Downloading stork-asset..."
 # Download the binary
-sudo curl -L "https://github.com/henrymbaldwin/stork-asset-cli/releases/download/$LATEST_RELEASE/$BINARY_NAME" -o "$INSTALL_DIR/stork-asset"
+curl -L "https://github.com/henrymbaldwin/stork-asset-cli/releases/download/$LATEST_RELEASE/$BINARY_NAME" -o "$INSTALL_DIR/stork-asset"
 
 # Make it executable
-sudo chmod +x "$INSTALL_DIR/stork-asset"
+chmod +x "$INSTALL_DIR/stork-asset"
 
 echo "stork-asset has been installed to $INSTALL_DIR/stork-asset"
-echo "You can now run 'stork-asset' from anywhere in your terminal." 
+echo "You can now run 'stork-asset' from anywhere in your terminal."
+
+# Check if ~/.local/bin is in the current PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo "Note: You may need to restart your terminal or run:"
+    echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+fi 

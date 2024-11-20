@@ -7,7 +7,7 @@ A small CLI for generating Stork Oracle asset configurations.
 Install the CLI with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | bash
 ```
 
 or clone down this repository and install the CLI with cargo:

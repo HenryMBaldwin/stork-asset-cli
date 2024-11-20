@@ -11,7 +11,7 @@ use strsim::jaro_winkler;
 use colored::*;
 use std::process::Command;
 
-const VERSION: &str = "0.1.4";
+const VERSION: &str = "0.1.5";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
@@ -500,8 +500,8 @@ fn main() {
                             
                             println!("Installing update...");
                             
-                            // Download and execute the install script
-                            let install_cmd = r#"curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | sudo bash"#;
+                            // Download and execute the install script without sudo
+                            let install_cmd = r#"curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | bash"#;
                             
                             match Command::new("sh")
                                 .arg("-c")
