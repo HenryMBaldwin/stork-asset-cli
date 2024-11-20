@@ -11,7 +11,7 @@ use strsim::jaro_winkler;
 use colored::*;
 use std::process::Command;
 
-const VERSION: &str = "0.1.8";
+const VERSION: &str = "0.1.9";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
@@ -180,17 +180,29 @@ fn get_available_assets(token: &str) -> Result<Vec<String>, String> {
 }
 
 fn find_similar_assets(target: &str, available_assets: &[String], limit: usize) -> Vec<String> {
+    const HARD_LIMIT: usize = 10;  // Maximum number of results we'll ever return
     let target = target.to_uppercase();
-    let mut similarities: Vec<(f64, &String)> = available_assets
-        .iter()
+    
+    // First, collect all direct substring matches (up to HARD_LIMIT)
+    let mut exact_matches: Vec<String> = available_assets.iter()
+        .filter(|asset| asset.to_uppercase().contains(&target))
+        .take(HARD_LIMIT)  // Never return more than HARD_LIMIT matches
+        .cloned()
+        .collect();
+    
+    // If we have any exact matches, return them (already limited to HARD_LIMIT)
+    if !exact_matches.is_empty() {
+        return exact_matches;
+    }
+    
+    // For remaining slots, find the best partial matches
+    // (excluding assets that were already exact matches)
+    let remaining_slots = limit.min(HARD_LIMIT);  // Use the smaller of limit or HARD_LIMIT
+    let mut partial_matches: Vec<(f64, String)> = available_assets.iter()
+        .filter(|asset| !asset.to_uppercase().contains(&target))
         .map(|asset| {
             let asset_upper = asset.to_uppercase();
             let mut score = jaro_winkler(&target, &asset_upper);
-            
-            // Boost score for substring matches
-            if asset_upper.contains(&target) {
-                score += 0.5;  // Significant boost for containing the target
-            }
             
             // Boost score for prefix/suffix matches
             if asset_upper.starts_with(&target) {
@@ -204,16 +216,21 @@ fn find_similar_assets(target: &str, available_assets: &[String], limit: usize) 
                 score += 0.1;  // Small boost for almost containing the target
             }
             
-            (score, asset)
+            (score, asset.clone())
         })
         .collect();
     
-    similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    // Sort partial matches by score
+    partial_matches.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
     
-    similarities.iter()
-        .take(limit)
-        .map(|(_, asset)| (*asset).clone())
-        .collect()
+    // Add the best partial matches up to the remaining_slots
+    exact_matches.extend(
+        partial_matches.into_iter()
+            .take(remaining_slots)
+            .map(|(_, asset)| asset)
+    );
+    
+    exact_matches
 }
 
 fn get_latest_version() -> Result<String, String> {
@@ -354,14 +371,16 @@ fn main() {
                                                 .collect();
 
                                             println!("Asset Availability:\n");
+                                            let mut failed = false;
                                             for asset in assets.split(',').map(|s| s.trim()) {
                                                 let status = if available_assets.contains(&asset.to_string().to_uppercase()) {
                                                     "available".green()
                                                 } else {
+                                                    failed = true;
                                                     let similar = find_similar_assets(asset, &available_assets, 3);
                                                     if !similar.is_empty() {
                                                         println!("{}: {}", asset, "unavailable".red());
-                                                        println!("  Assets with similar names are available:");
+                                                        println!("  Here are a few available assets with similar names:");
                                                         for s in similar {
                                                             println!("      - {}", s);
                                                         }
@@ -371,6 +390,9 @@ fn main() {
                                                     "unavailable".red()
                                                 };
                                                 println!("{}: {}\n", asset.to_uppercase(), status);
+                                            }
+                                            if failed {
+                                                println!("Note: Some assets were not found. Run {} to see all available assets.", "stork-asset get-assets".italic().yellow());
                                             }
                                         }
                                     } else {
