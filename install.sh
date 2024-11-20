@@ -41,7 +41,7 @@ LATEST_RELEASE=$(curl -s https://api.github.com/repos/henrymbaldwin/stork-asset-
 INSTALL_DIR="/usr/local/bin"
 sudo mkdir -p "$INSTALL_DIR"
 
-echo "Downloading stork-asset..."
+echo "Downloading $BINARY_NAME $LATEST_RELEASE..."
 # Download the binary
 sudo curl -L "https://github.com/henrymbaldwin/stork-asset-cli/releases/download/$LATEST_RELEASE/$BINARY_NAME" -o "$INSTALL_DIR/stork-asset"
 
