@@ -7,7 +7,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tiny_keccak::{Hasher, Keccak};
-
+use strsim::jaro_winkler;
+use colored::*;
 #[derive(Parser)]
 #[command(name = "stork-asset")]
 #[command(about = "A small CLI tool for generating Stork asset configurations")]
@@ -166,6 +167,23 @@ fn get_available_assets(token: &str) -> Result<Vec<String>, String> {
     }
 }
 
+fn find_similar_assets(target: &str, available_assets: &[String], limit: usize) -> Vec<String> {
+    let mut similarities: Vec<(f64, &String)> = available_assets
+        .iter()
+        .map(|asset| {
+            let similarity = jaro_winkler(target, asset);
+            (similarity, asset)
+        })
+        .collect();
+    
+    similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    
+    similarities.iter()
+        .take(limit)
+        .map(|(_, asset)| (*asset).clone())
+        .collect()
+}
+
 fn main() {
     let cli = Cli::parse();
     
@@ -261,11 +279,21 @@ fn main() {
                                             println!("Asset Availability:\n");
                                             for asset in assets.split(',').map(|s| s.trim()) {
                                                 let status = if available_assets.contains(&asset.to_string()) {
-                                                    "available"
+                                                    "available".green()
                                                 } else {
-                                                    "unavailable"
+                                                    let similar = find_similar_assets(asset, &available_assets, 3);
+                                                    if !similar.is_empty() {
+                                                        println!("{}: {}", asset, "unavailable".red());
+                                                        println!("  Assets with similar names are available:");
+                                                        for s in similar {
+                                                            println!("      - {}", s);
+                                                        }
+                                                        println!();
+                                                        continue;
+                                                    }
+                                                    "unavailable".red()
                                                 };
-                                                println!("{}: {}", asset, status);
+                                                println!("{}: {}\n", asset, status);
                                             }
                                         }
                                     } else {
