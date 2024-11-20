@@ -11,7 +11,7 @@ use strsim::jaro_winkler;
 use colored::*;
 use std::process::Command;
 
-const VERSION: &str = "0.1.4";
+const VERSION: &str = "0.1.6";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
@@ -218,6 +218,27 @@ fn get_latest_version() -> Result<String, String> {
         .as_str()
         .map(|v| v.trim_start_matches('v').to_string())
         .ok_or_else(|| "Invalid version format in response".to_string())
+}
+
+// Add this new function to check if we have write permissions
+fn check_install_permissions() -> bool {
+    let install_path = Path::new("/usr/local/bin");
+    match fs::metadata(install_path) {
+        Ok(metadata) => {
+            // On Unix systems, check if we can write to the directory
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                let uid = unsafe { libc::getuid() };
+                metadata.uid() == uid || uid == 0
+            }
+            #[cfg(not(unix))]
+            {
+                true // On non-Unix systems, we'll try anyway
+            }
+        }
+        Err(_) => false,
+    }
 }
 
 fn main() {
@@ -497,11 +518,19 @@ fn main() {
                                 println!("Use --force to update anyway");
                                 return;
                             }
+
+                            // Check permissions before attempting update
+                            if !check_install_permissions() {
+                                println!("Error: Insufficient permissions to perform update");
+                                println!("Please run with sudo:");
+                                println!("\n    sudo stork-asset update\n");
+                                return;
+                            }
                             
                             println!("Installing update...");
                             
                             // Download and execute the install script
-                            let install_cmd = r#"curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | sudo bash"#;
+                            let install_cmd = r#"curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | bash"#;
                             
                             match Command::new("sh")
                                 .arg("-c")

@@ -1,6 +1,6 @@
 [package]
 name = "stork_asset_cli"
-version = "0.1.4"
+version = "0.1.6"
 edition = "2021"
 
 [[bin]]
@@ -12,6 +12,7 @@ clap = { version = "4.5.20", features = ["derive"] }
 colored = "2.1.0"
 dirs = "5.0.1"
 hex = "0.4.3"
+libc = "0.2.164"
 rand = "0.8.5"
 reqwest = { version = "0.12.9", features = ["blocking", "json"] }
 serde = "1.0.214"
