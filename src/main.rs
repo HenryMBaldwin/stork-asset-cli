@@ -9,9 +9,15 @@ use std::path::{Path, PathBuf};
 use tiny_keccak::{Hasher, Keccak};
 use strsim::jaro_winkler;
 use colored::*;
+use reqwest::blocking::get;
+use std::process::Command;
+
+const VERSION: &str = "0.1.3";
+
 #[derive(Parser)]
 #[command(name = "stork-asset")]
 #[command(about = "A small CLI tool for generating Stork asset configurations")]
+#[command(version = VERSION)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -67,6 +73,13 @@ enum Commands {
         /// Percent change threshold
         #[arg(short = 'p', long = "percent", default_value = "1.0")]
         percent_change: f64,
+    },
+    /// Check for updates and install the latest version
+    #[command(aliases = ["upgrade"])]
+    Update {
+        /// Force update without version check
+        #[arg(short = 'f', long = "force")]
+        force: bool,
     },
 }
 
@@ -182,6 +195,30 @@ fn find_similar_assets(target: &str, available_assets: &[String], limit: usize) 
         .take(limit)
         .map(|(_, asset)| (*asset).clone())
         .collect()
+}
+
+fn get_latest_version() -> Result<String, String> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("stork-asset-cli")
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client
+        .get("https://api.github.com/repos/henrymbaldwin/stork-asset-cli/releases/latest")
+        .send()
+        .map_err(|e| format!("Failed to check for updates: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err("Failed to get latest version information".to_string());
+    }
+
+    let release: serde_json::Value = response.json()
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    
+    release["tag_name"]
+        .as_str()
+        .map(|v| v.trim_start_matches('v').to_string())
+        .ok_or_else(|| "Invalid version format in response".to_string())
 }
 
 fn main() {
@@ -441,6 +478,48 @@ fn main() {
                             }
                         }
                         None => println!("No authentication token set. Set token with: \n\n   asset-conf set-token <token>"),
+                    }
+                }
+                Commands::Update { force } => {
+                    println!("Checking for updates...");
+                    
+                    match get_latest_version() {
+                        Ok(latest_version) => {
+                            if !force && latest_version == VERSION {
+                                println!("You're already running the latest version ({})", VERSION);
+                                return;
+                            }
+                            
+                            println!("Current version: {}", VERSION);
+                            println!("Latest version:  {}", latest_version);
+                            
+                            if !force && latest_version < VERSION.to_string() {
+                                println!("Warning: Latest version is older than current version");
+                                println!("Use --force to update anyway");
+                                return;
+                            }
+                            
+                            println!("Installing update...");
+                            
+                            // Download and execute the install script
+                            let install_cmd = r#"curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | sudo bash"#;
+                            
+                            match Command::new("sh")
+                                .arg("-c")
+                                .arg(install_cmd)
+                                .status() 
+                            {
+                                Ok(status) => {
+                                    if status.success() {
+                                        println!("Successfully updated stork-asset-cli to version {}", latest_version);
+                                    } else {
+                                        println!("Failed to update. Please try again or update manually");
+                                    }
+                                }
+                                Err(e) => println!("Error during update: {}", e),
+                            }
+                        }
+                        Err(e) => println!("Error checking for updates: {}", e),
                     }
                 }
             }
