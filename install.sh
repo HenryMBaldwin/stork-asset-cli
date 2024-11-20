@@ -35,7 +35,7 @@ case $OS in
 esac
 
 # Get latest release version from GitHub
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/henrymbaldwin/stork-asset-cli/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/henrymbaldwin/stork-asset-cli/releases/latest | grep -o '"tag_name": *"[^"]*"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
 
 # Create installation directory
 INSTALL_DIR="/usr/local/bin"
