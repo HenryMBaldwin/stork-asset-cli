@@ -29,6 +29,14 @@ cargo install --path .
 stork-asset --help
 ```
 
+```bash
+stork-asset --version
+```
+
+```bash
+stork-asset update
+```
+
 ### Authentication
 
 Before using the tool, you need to set up your auth token for use with the stork rest api:

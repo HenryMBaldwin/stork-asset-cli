@@ -9,10 +9,9 @@ use std::path::{Path, PathBuf};
 use tiny_keccak::{Hasher, Keccak};
 use strsim::jaro_winkler;
 use colored::*;
-use reqwest::blocking::get;
 use std::process::Command;
 
-const VERSION: &str = "0.1.3";
+const VERSION: &str = "0.1.4";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
