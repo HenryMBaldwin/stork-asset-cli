@@ -11,7 +11,7 @@ use strsim::jaro_winkler;
 use colored::*;
 use std::process::Command;
 
-const VERSION: &str = "0.1.6";
+const VERSION: &str = "0.1.7";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
@@ -330,12 +330,12 @@ fn main() {
                                         if let Some(available_assets) = response["data"].as_array() {
                                             let available_assets: Vec<String> = available_assets
                                                 .iter()
-                                                .map(|a| a.as_str().unwrap_or("").to_string())
+                                                .map(|a| a.as_str().unwrap_or("").to_string().to_uppercase())
                                                 .collect();
 
                                             println!("Asset Availability:\n");
                                             for asset in assets.split(',').map(|s| s.trim()) {
-                                                let status = if available_assets.contains(&asset.to_string()) {
+                                                let status = if available_assets.contains(&asset.to_string().to_uppercase()) {
                                                     "available".green()
                                                 } else {
                                                     let similar = find_similar_assets(asset, &available_assets, 3);
@@ -350,7 +350,7 @@ fn main() {
                                                     }
                                                     "unavailable".red()
                                                 };
-                                                println!("{}: {}\n", asset, status);
+                                                println!("{}: {}\n", asset.to_uppercase(), status);
                                             }
                                         }
                                     } else {
@@ -519,7 +519,6 @@ fn main() {
                                 return;
                             }
 
-                            // Check permissions before attempting update
                             if !check_install_permissions() {
                                 println!("Error: Insufficient permissions to perform update");
                                 println!("Please run with sudo:");
@@ -529,8 +528,10 @@ fn main() {
                             
                             println!("Installing update...");
                             
-                            // Download and execute the install script
-                            let install_cmd = r#"curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | bash"#;
+                            // Modified install command with more robust grep pattern
+                            let install_cmd = r#"
+                                curl -fsSL https://raw.githubusercontent.com/HenryMBaldwin/stork-asset-cli/refs/heads/master/install.sh | sudo bash
+                            "#;
                             
                             match Command::new("sh")
                                 .arg("-c")
