@@ -180,11 +180,31 @@ fn get_available_assets(token: &str) -> Result<Vec<String>, String> {
 }
 
 fn find_similar_assets(target: &str, available_assets: &[String], limit: usize) -> Vec<String> {
+    let target = target.to_uppercase();
     let mut similarities: Vec<(f64, &String)> = available_assets
         .iter()
         .map(|asset| {
-            let similarity = jaro_winkler(target, asset);
-            (similarity, asset)
+            let asset_upper = asset.to_uppercase();
+            let mut score = jaro_winkler(&target, &asset_upper);
+            
+            // Boost score for substring matches
+            if asset_upper.contains(&target) {
+                score += 0.5;  // Significant boost for containing the target
+            }
+            
+            // Boost score for prefix/suffix matches
+            if asset_upper.starts_with(&target) {
+                score += 0.3;  // Boost for prefix match
+            } else if asset_upper.ends_with(&target) {
+                score += 0.2;  // Boost for suffix match
+            }
+            
+            // Boost for partial word matches
+            if target.len() >= 3 && asset_upper.contains(&target[..target.len()-1]) {
+                score += 0.1;  // Small boost for almost containing the target
+            }
+            
+            (score, asset)
         })
         .collect();
     
