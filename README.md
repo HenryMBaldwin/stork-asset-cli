@@ -53,6 +53,11 @@ You can also get the encoded asset IDs for specific assets with:
 ```bash
 stork-asset get-encoded -a <asset_id1>,<asset_id2>,...
 ```
+You can check if specific assets are available with:
+
+```bash
+stork-asset check <asset_id1>,<asset_id2>,...
+```
 
 ### Generating an Asset Configuration
 

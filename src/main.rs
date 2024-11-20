@@ -31,8 +31,14 @@ enum Commands {
         #[arg(short = 'e', long = "encoded")]
         show_encoded: bool,
     },
+    /// Check if assets are available
+    #[command(name = "check-assets", aliases = ["check"])]
+    CheckAssets{
+        /// Comma-separated list of asset IDs
+        assets: String,
+    },
     /// Get encoded asset ID(s)
-    #[command(name = "get-encoded" )]
+    #[command(name = "get-encoded", aliases = ["get-enc", "enc"])]
     GetEncodedAssets{
         /// Comma-separated list of asset IDs
         #[arg(short = 'a', long = "assets")]
@@ -225,7 +231,56 @@ fn main() {
                         }
                         None => println!("No authentication token set. Set token with: \n\n   asset-conf set-token <token>"),
                     }
-                }
+                },
+                Commands::CheckAssets { assets } => {
+                    let config = load_config();
+                    match config.auth_token {
+                        Some(token) => {
+                            let client = Client::new();
+                            let mut headers = HeaderMap::new();
+                            headers.insert(
+                                AUTHORIZATION,
+                                HeaderValue::from_str(&format!("Basic {}", token))
+                                    .expect("Invalid token format"),
+                            );
+
+                            match client
+                                .get("https://rest.jp.stork-oracle.network/v1/prices/assets")
+                                .headers(headers)
+                                .send()
+                            {
+                                Ok(response) => {
+                                    if response.status().is_success() {
+                                        let response: serde_json::Value = response.json().unwrap();
+                                        if let Some(available_assets) = response["data"].as_array() {
+                                            let available_assets: Vec<String> = available_assets
+                                                .iter()
+                                                .map(|a| a.as_str().unwrap_or("").to_string())
+                                                .collect();
+
+                                            println!("Asset Availability:\n");
+                                            for asset in assets.split(',').map(|s| s.trim()) {
+                                                let status = if available_assets.contains(&asset.to_string()) {
+                                                    "available"
+                                                } else {
+                                                    "unavailable"
+                                                };
+                                                println!("{}: {}", asset, status);
+                                            }
+                                        }
+                                    } else {
+                                        println!("Error: Server returned status {}", response.status());
+                                        if response.status() == 401 {
+                                            println!("Check your token with: \n\n   stork-asset get-token \n\nChange your token with: \n\n   stork-asset set-token <token>");
+                                        }
+                                    }
+                                }
+                                Err(e) => println!("Error making request: {}", e),
+                            }
+                        }
+                        None => println!("No authentication token set. Set token with: \n\n   stork-asset set-token <token>"),
+                    }
+                },
                 Commands::GetEncodedAssets { assets } => {
                     let mut invalid_assets = Vec::new();
                     let available_assets = match load_config().auth_token {
