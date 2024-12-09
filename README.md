@@ -139,3 +139,27 @@ assets:
     percent_change_threshold: 1.0
     encoded_asset_id: 0xa24cc95a4f3d70a0a2f7ac652b67a4a73791631ff06b4ee7f729097311169b81
 ```
+## Development
+
+To run the cli locally, you can use the following command:
+
+```bash
+cargo run -- <args>
+```
+
+To install the cli locally, you can use the following command:
+
+```bash
+cargo install --path .
+```
+
+To create a new release compatible with the github actions workflow, you can do the following:
+
+<ol>
+<li>Update the version in the <code>Cargo.toml</code> file</li>
+<li>Update the version in the <code>src/main.rs</code> file</li>
+<li>Tag the release with the new version using <code>git tag -a v&lt;version&gt; -m "&lt;version&gt; Release"</code></li>
+<li>Push the tag to the remote repository using <code>git push origin v&lt;version&gt;</code></li>
+</ol>
+
+This will trigger the github actions workflow to build and release the new version.
