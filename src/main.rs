@@ -32,10 +32,23 @@ enum Commands {
     /// Get the current authentication token
     GetToken,
     /// Get available assets
+    #[command(name = "get-assets", aliases = ["list"])]
     GetAssets{
         /// Show encoded asset IDs
         #[arg(short = 'e', long = "encoded")]
         show_encoded: bool,
+         /// Output in JSON format
+         #[arg(short = 'j', long = "json", conflicts_with = "csv", conflicts_with = "md", group = "output_format")]
+         json: bool,
+         /// Output in CSV format
+         #[arg(short = 'c', long = "csv", conflicts_with = "json", conflicts_with = "md", group = "output_format")]
+         csv: bool,
+         /// Output in Markdown table format
+         #[arg(short = 'm', long = "md", conflicts_with = "json", conflicts_with = "csv", group = "output_format")]
+         md: bool,
+         /// Output file (only valid with --json, --csv, or --md)
+         #[arg(short = 'o', long = "outfile", requires = "output_format")]
+         outfile: Option<PathBuf>,
     },
     /// Check if assets are available
     #[command(name = "check-assets", aliases = ["check"])]
@@ -44,10 +57,9 @@ enum Commands {
         assets: String,
     },
     /// Get encoded asset ID(s)
-    #[command(name = "get-encoded", aliases = ["get-enc", "enc"])]
+    #[command(name = "get-encoded", aliases = ["get-enc", "enc", "encoded", "encode"])]
     GetEncodedAssets{
         /// Comma-separated list of asset IDs
-        #[arg(short = 'a', long = "assets")]
         assets: String,
     },
     /// Generate an asset configuration file
