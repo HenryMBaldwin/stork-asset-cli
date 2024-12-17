@@ -11,7 +11,7 @@ use strsim::jaro_winkler;
 use colored::*;
 use std::process::Command;
 
-const VERSION: &str = "0.1.9";
+const VERSION: &str = "0.2.0";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
@@ -312,48 +312,114 @@ fn main() {
                         None => println!("No authentication token set"),
                     }
                 }
-                Commands::GetAssets { show_encoded } => {
+                Commands::GetAssets { show_encoded, json, csv, md, outfile } => {
                     let config = load_config();
                     match config.auth_token {
                         Some(token) => {
-                            let client = Client::new();
-                            let mut headers = HeaderMap::new();
-                            headers.insert(
-                                AUTHORIZATION,
-                                HeaderValue::from_str(&format!("Basic {}", token))
-                                    .expect("Invalid token format"),
-                            );
+                            match get_available_assets(&token) {
+                                Ok(mut assets) => {
+                                    // Sort assets alphabetically
+                                    assets.sort();
+                                    
+                                    // Prepare data in a format that's easy to transform
+                                    let asset_data: Vec<(String, String)> = assets.iter()
+                                        .map(|asset| (
+                                            asset.clone(),
+                                            if show_encoded {
+                                                calculate_encoded_asset_id(asset)
+                                            } else {
+                                                String::new()
+                                            }
+                                        ))
+                                        .collect();
 
-                            match client
-                                .get("https://rest.jp.stork-oracle.network/v1/prices/assets")
-                                .headers(headers)
-                                .send()
-                            {
-                                Ok(response) => {
-                                    if response.status().is_success() {
-                                        let response: serde_json::Value = response.json().unwrap();
-                                        if let Some(assets) = response["data"].as_array() {
-                                            println!("Assets:\n");
-                                            for asset in assets {
-                                                if show_encoded {
-                                                    println!("{}: {}", asset.as_str().unwrap_or("Invalid asset name"), calculate_encoded_asset_id(asset.as_str().unwrap_or("Invalid asset name")));
-                                                } else {
-                                                    println!("{}", asset.as_str().unwrap_or("Invalid asset name"));
+                                    let output = if json {
+                                        // JSON output
+                                        let json_data: serde_json::Value = if show_encoded {
+                                            serde_json::json!({
+                                                "assets": asset_data.iter()
+                                                    .map(|(asset, encoded)| {
+                                                        serde_json::json!({
+                                                            "asset_id": asset,
+                                                            "encoded_id": encoded
+                                                        })
+                                                    })
+                                                    .collect::<Vec<_>>()
+                                            })
+                                        } else {
+                                            serde_json::json!({ "assets": assets })
+                                        };
+                                        serde_json::to_string_pretty(&json_data).unwrap()
+                                    } else if csv {
+                                        // CSV output
+                                        let mut output = if show_encoded {
+                                            String::from("Asset ID, Encoded Asset ID\n")
+                                        } else {
+                                            String::from("Asset ID\n")
+                                        };
+                                        
+                                        for (asset, encoded) in &asset_data {
+                                            if show_encoded {
+                                                output.push_str(&format!("{},{}\n", asset, encoded));
+                                            } else {
+                                                output.push_str(&format!("{}\n", asset));
+                                            }
+                                        }
+                                        output
+                                    } else if md {
+                                        // Markdown table output
+                                        let mut output = if show_encoded {
+                                            String::from("| Asset ID |  Encoded Asset ID |\n|----------|------------|\n")
+                                        } else {
+                                            String::from("| Asset ID |\n|----------|\n")
+                                        };
+                                        
+                                        for (asset, encoded) in &asset_data {
+                                            if show_encoded {
+                                                output.push_str(&format!("| {} | {} |\n", asset, encoded));
+                                            } else {
+                                                output.push_str(&format!("| {} |\n", asset));
+                                            }
+                                        }
+                                        output
+                                    } else {
+                                        // Default console output (original format)
+                                        let mut output = String::from("Assets:\n\n");
+                                        for (asset, encoded) in &asset_data {
+                                            if show_encoded {
+                                                output.push_str(&format!("{}: {}\n", asset, encoded));
+                                            } else {
+                                                output.push_str(&format!("{}\n", asset));
+                                            }
+                                        }
+                                        output.push_str(&format!("\nTotal Assets: {}", assets.len()));
+                                        output
+                                    };
+
+                                    // Handle output destination
+                                    if let Some(path) = outfile {
+                                        // Create parent directory if it doesn't exist
+                                        if let Some(parent) = path.parent() {
+                                            if !parent.exists() {
+                                                if let Err(e) = fs::create_dir_all(parent) {
+                                                    println!("Error creating directory: {}", e);
+                                                    return;
                                                 }
                                             }
-                                            println!("\nTotal Assets: {}", assets.len());
+                                        }
+                                        
+                                        match fs::write(&path, output) {
+                                            Ok(_) => println!("Output written to {}", path.display()),
+                                            Err(e) => println!("Error writing to file: {}", e),
                                         }
                                     } else {
-                                        println!("Error: Server returned status {}", response.status());
-                                        if response.status() == 401 {
-                                            println!("Check your token with: \n\n   stork-asset get-token \n\nChange your token with: \n\n   stork-asset set-token <token>");
-                                        }
+                                        println!("{}", output);
                                     }
                                 }
-                                Err(e) => println!("Error making request: {}", e),
+                                Err(e) => println!("Error: {}", e),
                             }
                         }
-                        None => println!("No authentication token set. Set token with: \n\n   asset-conf set-token <token>"),
+                        None => println!("No authentication token set. Set token with: \n\n   stork-asset set-token <token>"),
                     }
                 },
                 Commands::CheckAssets { assets } => {
