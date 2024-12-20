@@ -10,7 +10,7 @@ use strsim::jaro_winkler;
 use colored::*;
 use std::process::Command;
 
-const VERSION: &str = "0.2.0";
+const VERSION: &str = "0.2.1";
 
 #[derive(Parser)]
 #[command(name = "stork-asset")]
